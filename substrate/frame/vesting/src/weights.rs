@@ -58,6 +58,7 @@ pub trait WeightInfo {
 	fn vest_other_unlocked(l: u32, s: u32, ) -> Weight;
 	fn vested_transfer(l: u32, s: u32, ) -> Weight;
 	fn force_vested_transfer(l: u32, s: u32, ) -> Weight;
+	fn force_remove_vesting_schedule(l: u32, s: u32) -> Weight;
 	fn not_unlocking_merge_schedules(l: u32, s: u32, ) -> Weight;
 	fn unlocking_merge_schedules(l: u32, s: u32, ) -> Weight;
 }
@@ -198,6 +199,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(Weight::from_parts(100_848, 0).saturating_mul(s.into()))
 			.saturating_add(T::DbWeight::get().reads(5_u64))
 			.saturating_add(T::DbWeight::get().writes(4_u64))
+	}
+	fn force_remove_vesting_schedule(l: u32, s: u32) -> Weight {
+
 	}
 	/// Storage: Vesting Vesting (r:1 w:1)
 	/// Proof: Vesting Vesting (max_values: None, max_size: Some(1057), added: 3532, mode: MaxEncodedLen)

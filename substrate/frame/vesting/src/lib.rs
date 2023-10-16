@@ -378,6 +378,18 @@ pub mod pallet {
 			Self::do_vested_transfer(source, target, schedule)
 		}
 
+		#[pallet::call_index(4)]
+		#[pallet::weight(T::WeightInfo::force_remove_vesting_schedule(MaxLocksOf::<T>::get(), T::MAX_VESTING_SCHEDULES))]
+		pub fn force_remove_vesting_schedule(
+			origin: OriginFor<T>,
+			target: AccountIdLookupOf<T>,
+			schedule_index: u32,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			let who = T::Lookup::lookup(target)?;
+			Self::remove_vesting_schedule(&who, schedule_index)
+		}
+
 		/// Merge two vesting schedules together, creating a new vesting schedule that unlocks over
 		/// the highest possible start and end blocks. If both schedules have already started the
 		/// current block will be used as the schedule start; with the caveat that if one schedule
@@ -399,7 +411,7 @@ pub mod pallet {
 		///
 		/// - `schedule1_index`: index of the first schedule to merge.
 		/// - `schedule2_index`: index of the second schedule to merge.
-		#[pallet::call_index(4)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(
 			T::WeightInfo::not_unlocking_merge_schedules(MaxLocksOf::<T>::get(), T::MAX_VESTING_SCHEDULES)
 			.max(T::WeightInfo::unlocking_merge_schedules(MaxLocksOf::<T>::get(), T::MAX_VESTING_SCHEDULES))
