@@ -35,6 +35,8 @@ cumulus-pallet-parachain-system = { path = "../../pallets/parachain-system" }
 cumulus-primitives-parachain-inherent = { path = "../../primitives/parachain-inherent" }
 cumulus-test-relay-sproof-builder = { path = "../../test/relay-sproof-builder" }
 parachains-common = { path = "../../parachains/common" }
+rococo-system-emulated-network = { path = "../../parachains/integration-tests/emulated/networks/rococo-system"}
+emulated-integration-tests-common = { path = "../../parachains/integration-tests/emulated/common", default-features =false }
 
 # Polkadot
 xcm = { package = "staging-xcm", path = "../../../polkadot/xcm" }
