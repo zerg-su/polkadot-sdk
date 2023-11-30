@@ -21176,6 +21176,7 @@ dependencies = [
  "sp-tracing 10.0.0",
  "staging-xcm",
  "staging-xcm-executor",
+ "trybuild",
 ]
 
 [[package]]

@@ -383,7 +383,6 @@ impl TelemetryWorkerHandle {
 		}
 	}
 }
-
 /// A telemetry instance that can be used to send telemetry messages.
 #[derive(Debug)]
 pub struct Telemetry {
