@@ -329,8 +329,8 @@ mod json_patch;
 
 pub use self::{
 	chain_spec::{
-		update_code_in_json_chain_spec, ChainSpec as GenericChainSpec, ChainSpecBuilder,
-		NoExtension,
+		update_code_in_json_chain_spec, BuildGenesisStorageCallbackContext,
+		ChainSpec as GenericChainSpec, ChainSpecBuilder, NoExtension,
 	},
 	extension::{get_extension, get_extension_mut, Extension, Fork, Forks, GetExtension, Group},
 	genesis_block::{
@@ -415,6 +415,14 @@ pub trait ChainSpec: BuildStorage + Send + Sync {
 	fn set_storage(&mut self, storage: Storage);
 	/// Returns code substitutes that should be used for the on chain wasm.
 	fn code_substitutes(&self) -> std::collections::BTreeMap<String, Vec<u8>>;
+	/// Builds a storage using provided callback which allows injection of shared executor into the
+	/// genesis storage building context (which is first argument of `build` callback).
+	///
+	/// For details on how to use it refer to specific `ChainSpec` implementations.
+	fn build_storage_with_executor(
+		&self,
+		build: &dyn Fn(&dyn std::any::Any, &mut Storage) -> Result<(), String>,
+	) -> Result<sp_core::storage::Storage, String>;
 }
 
 impl std::fmt::Debug for dyn ChainSpec {

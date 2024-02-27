@@ -20,7 +20,6 @@
 
 use codec::{Decode, Encode};
 pub use sc_executor::sp_wasm_interface::HostFunctions;
-use sc_executor::{error::Result, WasmExecutor};
 use serde_json::{from_slice, Value};
 use sp_core::{
 	storage::Storage,
@@ -34,42 +33,45 @@ use std::borrow::Cow;
 ///
 /// `EHF` type allows to specify the extended host function required for building runtime's genesis
 /// config. The type will be compbined with default `sp_io::SubstrateHostFunctions`.
-pub struct GenesisConfigBuilderRuntimeCaller<'a, EHF = ()>
+pub struct GenesisConfigBuilderRuntimeCaller<'a, E>
 where
-	EHF: HostFunctions,
+	E: CodeExecutor,
 {
 	code: Cow<'a, [u8]>,
 	code_hash: Vec<u8>,
-	executor: WasmExecutor<(sp_io::SubstrateHostFunctions, EHF)>,
+	executor: E,
 }
 
-impl<'a, EHF> FetchRuntimeCode for GenesisConfigBuilderRuntimeCaller<'a, EHF>
+impl<'a, E> FetchRuntimeCode for GenesisConfigBuilderRuntimeCaller<'a, E>
 where
-	EHF: HostFunctions,
+	E: CodeExecutor,
 {
 	fn fetch_runtime_code(&self) -> Option<Cow<[u8]>> {
 		Some(self.code.as_ref().into())
 	}
 }
 
-impl<'a, EHF> GenesisConfigBuilderRuntimeCaller<'a, EHF>
+impl<'a, E> GenesisConfigBuilderRuntimeCaller<'a, E>
 where
-	EHF: HostFunctions,
+	E: CodeExecutor,
 {
-	/// Creates new instance using the provided code blob.
+	/// Creates new instance using the provided code blob and an executor.
 	///
 	/// This code is later referred to as `runtime`.
-	pub fn new(code: &'a [u8]) -> Self {
+	pub fn new_with_executor(code: &'a [u8], executor: E) -> Self {
 		GenesisConfigBuilderRuntimeCaller {
 			code: code.into(),
 			code_hash: sp_crypto_hashing::blake2_256(code).to_vec(),
-			executor: WasmExecutor::<(sp_io::SubstrateHostFunctions, EHF)>::builder()
-				.with_allow_missing_host_functions(true)
-				.build(),
+			executor,
 		}
 	}
 
-	fn call(&self, ext: &mut dyn Externalities, method: &str, data: &[u8]) -> Result<Vec<u8>> {
+	fn call(
+		&self,
+		ext: &mut dyn Externalities,
+		method: &str,
+		data: &[u8],
+	) -> Result<Vec<u8>, <E as CodeExecutor>::Error> {
 		self.executor
 			.call(
 				ext,
@@ -143,12 +145,20 @@ mod tests {
 	use serde_json::{from_str, json};
 	pub use sp_consensus_babe::{AllowedSlots, BabeEpochConfiguration};
 
+	type TestExecutor = sc_executor::WasmExecutor<sp_io::SubstrateHostFunctions>;
+
+	fn executor() -> TestExecutor {
+		TestExecutor::builder().with_allow_missing_host_functions(true).build()
+	}
+
 	#[test]
 	fn get_default_config_works() {
-		let config =
-			<GenesisConfigBuilderRuntimeCaller>::new(substrate_test_runtime::wasm_binary_unwrap())
-				.get_default_config()
-				.unwrap();
+		let config = GenesisConfigBuilderRuntimeCaller::<_>::new_with_executor(
+			substrate_test_runtime::wasm_binary_unwrap(),
+			executor(),
+		)
+		.get_default_config()
+		.unwrap();
 		let expected = r#"{"babe": {"authorities": [], "epochConfig": {"allowed_slots": "PrimaryAndSecondaryVRFSlots", "c": [1, 4]}}, "balances": {"balances": []}, "substrateTest": {"authorities": []}, "system": {}}"#;
 		assert_eq!(from_str::<Value>(expected).unwrap(), config);
 	}
@@ -167,10 +177,12 @@ mod tests {
 			},
 		});
 
-		let storage =
-			<GenesisConfigBuilderRuntimeCaller>::new(substrate_test_runtime::wasm_binary_unwrap())
-				.get_storage_for_patch(patch)
-				.unwrap();
+		let storage = GenesisConfigBuilderRuntimeCaller::<_>::new_with_executor(
+			substrate_test_runtime::wasm_binary_unwrap(),
+			executor(),
+		)
+		.get_storage_for_patch(patch)
+		.unwrap();
 
 		//Babe|Authorities
 		let value: Vec<u8> = storage

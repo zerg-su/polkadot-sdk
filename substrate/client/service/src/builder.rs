@@ -144,8 +144,16 @@ where
 {
 	let backend = new_db_backend(config.db_config())?;
 
-	let genesis_block_builder = GenesisBlockBuilder::new(
-		config.chain_spec.as_storage_builder(),
+	let build_callback =
+		&|ctx: &dyn std::any::Any, storage: &mut sp_runtime::Storage| -> Result<(), String> {
+			let ctx = sc_chain_spec::BuildGenesisStorageCallbackContext::from_any(ctx);
+			ctx.build_storage_with_executor(storage, executor.clone())
+		};
+
+	let genesis_storage = config.chain_spec.build_storage_with_executor(build_callback)?;
+
+	let genesis_block_builder = GenesisBlockBuilder::new_with_storage(
+		genesis_storage,
 		!config.no_genesis(),
 		backend.clone(),
 		executor.clone(),

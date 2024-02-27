@@ -119,6 +119,21 @@ impl<Block: BlockT, B: Backend<Block>, E: RuntimeVersionOf> GenesisBlockBuilder<
 			_phantom: PhantomData::<Block>,
 		})
 	}
+
+	pub fn new_with_storage(
+		genesis_storage: Storage,
+		commit_genesis_state: bool,
+		backend: Arc<B>,
+		executor: E,
+	) -> sp_blockchain::Result<Self> {
+		Ok(Self {
+			genesis_storage,
+			commit_genesis_state,
+			backend,
+			executor,
+			_phantom: PhantomData::<Block>,
+		})
+	}
 }
 
 impl<Block: BlockT, B: Backend<Block>, E: RuntimeVersionOf> BuildGenesisBlock<Block>

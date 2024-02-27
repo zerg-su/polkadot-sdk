@@ -122,11 +122,16 @@ impl<G: RuntimeGenesis> GenesisSource<G> {
 	}
 }
 
-impl<G: RuntimeGenesis, E, EHF> BuildStorage for ChainSpec<G, E, EHF>
+impl<G: RuntimeGenesis, E, EHF> ChainSpec<G, E, EHF>
 where
 	EHF: HostFunctions,
 {
-	fn assimilate_storage(&self, storage: &mut Storage) -> Result<(), String> {
+	fn assimilate_storage_with_executor(
+		&self,
+		storage: &mut Storage,
+		// executor: Option<sc_executor::WasmExecutor<(sp_io::SubstrateHostFunctions, EHF)>>,
+		build: &dyn Fn(&dyn std::any::Any, &mut Storage) -> Result<(), String>,
+	) -> Result<(), String> {
 		match self.genesis.resolve()? {
 			#[allow(deprecated)]
 			Genesis::Runtime(runtime_genesis_config) => {
@@ -157,24 +162,10 @@ where
 			// moment.
 			Genesis::StateRootHash(_) =>
 				return Err("Genesis storage in hash format not supported".into()),
-			Genesis::RuntimeGenesis(RuntimeGenesisInner {
-				json_blob: RuntimeGenesisConfigJson::Config(config),
-				code,
-			}) => {
-				RuntimeCaller::<EHF>::new(&code[..])
-					.get_storage_for_config(config)?
-					.assimilate_storage(storage)?;
-				storage
-					.top
-					.insert(sp_core::storage::well_known_keys::CODE.to_vec(), code.clone());
-			},
-			Genesis::RuntimeGenesis(RuntimeGenesisInner {
-				json_blob: RuntimeGenesisConfigJson::Patch(patch),
-				code,
-			}) => {
-				RuntimeCaller::<EHF>::new(&code[..])
-					.get_storage_for_patch(patch)?
-					.assimilate_storage(storage)?;
+			Genesis::RuntimeGenesis(RuntimeGenesisInner { json_blob, code }) => {
+				//todo: code.clone()
+				let ctx = BuildGenesisStorageCallbackContext::new(json_blob, code.clone());
+				build(ctx.as_any(), storage)?;
 				storage
 					.top
 					.insert(sp_core::storage::well_known_keys::CODE.to_vec(), code.clone());
@@ -182,6 +173,66 @@ where
 		};
 
 		Ok(())
+	}
+}
+
+/// The context for building genesis storage from chain spec instance.
+///
+/// The context will be provided to the `ChainSpec::build_storage_with_executor` callback allowing
+/// to inject code executor that shall be used to build genesis storage.
+pub struct BuildGenesisStorageCallbackContext {
+	json: RuntimeGenesisConfigJson,
+	code: Vec<u8>,
+}
+
+impl BuildGenesisStorageCallbackContext {
+	fn new(json: RuntimeGenesisConfigJson, code: Vec<u8>) -> Self {
+		Self { json, code }
+	}
+
+	///todo: doc
+	pub fn build_storage_with_executor<E: sp_core::traits::CodeExecutor>(
+		&self,
+		mut storage: &mut Storage,
+		executor: E,
+	) -> Result<(), String> {
+		let caller = RuntimeCaller::new_with_executor(&self.code[..], executor);
+		match self.json {
+			RuntimeGenesisConfigJson::Config(ref config) => caller
+				.get_storage_for_config(config.clone())?
+				.assimilate_storage(&mut storage)?,
+			RuntimeGenesisConfigJson::Patch(ref patch) =>
+				caller.get_storage_for_patch(patch.clone())?.assimilate_storage(&mut storage)?,
+		};
+		Ok(())
+	}
+
+	fn as_any(&self) -> &dyn std::any::Any {
+		self
+	}
+
+	/// Helper function to downcast `any` to `BuildGenesisStorageCallbackContext` instance.
+	pub fn from_any(any: &dyn std::any::Any) -> &BuildGenesisStorageCallbackContext {
+		any.downcast_ref::<BuildGenesisStorageCallbackContext>()
+			.expect("Provided context must be of BuildGenesisStorageCallbackContext type. qed.")
+	}
+}
+
+impl<G: RuntimeGenesis, E, EHF> BuildStorage for ChainSpec<G, E, EHF>
+where
+	EHF: HostFunctions,
+{
+	fn assimilate_storage(&self, storage: &mut Storage) -> Result<(), String> {
+		let build_callback =
+			&|ctx: &dyn std::any::Any, mut storage: &mut Storage| -> Result<(), String> {
+				let executor =
+					sc_executor::WasmExecutor::<(sp_io::SubstrateHostFunctions, EHF)>::builder()
+						.with_allow_missing_host_functions(true)
+						.build();
+				let ctx = BuildGenesisStorageCallbackContext::from_any(ctx);
+				ctx.build_storage_with_executor(&mut storage, executor)
+			};
+		self.assimilate_storage_with_executor(storage, build_callback)
 	}
 }
 
@@ -234,7 +285,7 @@ struct RuntimeGenesisInner {
 /// [`Genesis<G>::RuntimeGenesis`] format.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-enum RuntimeGenesisConfigJson {
+pub enum RuntimeGenesisConfigJson {
 	/// Represents the explicit and comprehensive runtime genesis config in JSON format.
 	/// The contained object is a JSON blob that can be parsed by a compatible runtime.
 	///
@@ -630,37 +681,25 @@ struct ChainSpecJsonContainer<G, E> {
 	genesis: Genesis<G>,
 }
 
-impl<G: RuntimeGenesis, E: serde::Serialize + Clone + 'static, EHF> ChainSpec<G, E, EHF>
+impl<G, E, EHF> ChainSpec<G, E, EHF>
 where
+	G: RuntimeGenesis + 'static,
+	E: GetExtension + serde::Serialize + Clone + Send + Sync + 'static,
 	EHF: HostFunctions,
 {
 	fn json_container(&self, raw: bool) -> Result<ChainSpecJsonContainer<G, E>, String> {
 		let raw_genesis = match (raw, self.genesis.resolve()?) {
-			(
-				true,
-				Genesis::RuntimeGenesis(RuntimeGenesisInner {
-					json_blob: RuntimeGenesisConfigJson::Config(config),
-					code,
-				}),
-			) => {
-				let mut storage =
-					RuntimeCaller::<EHF>::new(&code[..]).get_storage_for_config(config)?;
-				storage.top.insert(sp_core::storage::well_known_keys::CODE.to_vec(), code);
+			(true, Genesis::RuntimeGenesis(RuntimeGenesisInner { .. })) => {
+				// let executor =
+				// 	sc_executor::WasmExecutor::<(sp_io::SubstrateHostFunctions, EHF)>::builder()
+				// 		.with_allow_missing_host_functions(true)
+				// 		.build();
+				// let mut storage = RuntimeCaller::new_with_executor(&code[..], executor)
+				// 	.get_storage_for_patch(patch)?;
+				// storage.top.insert(sp_core::storage::well_known_keys::CODE.to_vec(), code);
+				let storage = self.build_storage()?;
 				RawGenesis::from(storage)
 			},
-			(
-				true,
-				Genesis::RuntimeGenesis(RuntimeGenesisInner {
-					json_blob: RuntimeGenesisConfigJson::Patch(patch),
-					code,
-				}),
-			) => {
-				let mut storage =
-					RuntimeCaller::<EHF>::new(&code[..]).get_storage_for_patch(patch)?;
-				storage.top.insert(sp_core::storage::well_known_keys::CODE.to_vec(), code);
-				RawGenesis::from(storage)
-			},
-
 			#[allow(deprecated)]
 			(true, Genesis::RuntimeAndCode(RuntimeInnerWrapper { runtime: g, code })) => {
 				let mut storage = g.build_storage()?;
@@ -747,6 +786,15 @@ where
 
 	fn as_storage_builder(&self) -> &dyn BuildStorage {
 		self
+	}
+
+	fn build_storage_with_executor(
+		&self,
+		build: &dyn Fn(&dyn std::any::Any, &mut Storage) -> Result<(), String>,
+	) -> Result<sp_core::storage::Storage, String> {
+		let mut storage = Default::default();
+		self.assimilate_storage_with_executor(&mut storage, build)?;
+		Ok(storage)
 	}
 
 	fn cloned_box(&self) -> Box<dyn crate::ChainSpec> {
