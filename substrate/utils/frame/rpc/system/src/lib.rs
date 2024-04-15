@@ -93,7 +93,7 @@ where
 	C: Send + Sync + 'static,
 	C::Api: AccountNonceApi<Block, AccountId, Nonce>,
 	C::Api: BlockBuilder<Block>,
-	P: TransactionPool + 'static,
+	P: TransactionPool<Block = Block> + 'static,
 	Block: traits::Block,
 	AccountId: Clone + Display + Codec + Send + 'static,
 	Nonce: Clone + Display + Codec + Send + traits::AtLeast32Bit + 'static,

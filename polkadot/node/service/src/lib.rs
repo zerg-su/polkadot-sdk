@@ -502,7 +502,7 @@ fn new_partial<ChainSelection>(
 where
 	ChainSelection: 'static + SelectChain<Block>,
 {
-	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
+	let transaction_pool = sc_transaction_pool::FullPool::new_full(
 		config.transaction_pool.clone(),
 		config.role.is_authority().into(),
 		config.prometheus_registry(),
