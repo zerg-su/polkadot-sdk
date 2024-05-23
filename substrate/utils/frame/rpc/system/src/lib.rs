@@ -70,14 +70,14 @@ impl From<Error> for i32 {
 }
 
 /// An implementation of System-specific RPC methods on full client.
-pub struct System<P: TransactionPool, C, B> {
+pub struct System<P: TransactionPool + ?Sized, C, B> {
 	client: Arc<C>,
 	pool: Arc<P>,
 	deny_unsafe: DenyUnsafe,
 	_marker: std::marker::PhantomData<B>,
 }
 
-impl<P: TransactionPool, C, B> System<P, C, B> {
+impl<P: TransactionPool + ?Sized, C, B> System<P, C, B> {
 	/// Create new `FullSystem` given client and transaction pool.
 	pub fn new(client: Arc<C>, pool: Arc<P>, deny_unsafe: DenyUnsafe) -> Self {
 		Self { client, pool, deny_unsafe, _marker: Default::default() }
@@ -93,7 +93,7 @@ where
 	C: Send + Sync + 'static,
 	C::Api: AccountNonceApi<Block, AccountId, Nonce>,
 	C::Api: BlockBuilder<Block>,
-	P: TransactionPool<Block = Block> + 'static,
+	P: TransactionPool<Block = Block> + 'static + ?Sized,
 	Block: traits::Block,
 	AccountId: Clone + Display + Codec + Send + 'static,
 	Nonce: Clone + Display + Codec + Send + traits::AtLeast32Bit + 'static,
@@ -183,7 +183,7 @@ fn adjust_nonce<P, AccountId, Nonce, Block>(
 	best: <Block as traits::Block>::Hash,
 ) -> Nonce
 where
-	P: TransactionPool<Block = Block>,
+	P: TransactionPool<Block = Block> + ?Sized,
 	AccountId: Clone + std::fmt::Display + Encode,
 	Nonce: Clone + std::fmt::Display + Encode + traits::AtLeast32Bit + 'static,
 	Block: traits::Block,

@@ -40,7 +40,7 @@ use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
 /// An API for transaction RPC calls.
-pub struct Transaction<Pool, Client> {
+pub struct Transaction<Pool: ?Sized, Client> {
 	/// Substrate client.
 	client: Arc<Client>,
 	/// Transactions pool.
@@ -49,7 +49,7 @@ pub struct Transaction<Pool, Client> {
 	executor: SubscriptionTaskExecutor,
 }
 
-impl<Pool, Client> Transaction<Pool, Client> {
+impl<Pool: ?Sized, Client> Transaction<Pool, Client> {
 	/// Creates a new [`Transaction`].
 	pub fn new(client: Arc<Client>, pool: Arc<Pool>, executor: SubscriptionTaskExecutor) -> Self {
 		Transaction { client, pool, executor }
@@ -71,7 +71,7 @@ const TX_SOURCE: TransactionSource = TransactionSource::External;
 const BAD_FORMAT: i32 = 1001;
 
 #[async_trait]
-impl<Pool, Client> TransactionApiServer<BlockHash<Pool>> for Transaction<Pool, Client>
+impl<Pool: ?Sized, Client> TransactionApiServer<BlockHash<Pool>> for Transaction<Pool, Client>
 where
 	Pool: TransactionPool + Sync + Send + 'static,
 	Pool::Hash: Unpin,

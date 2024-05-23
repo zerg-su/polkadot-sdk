@@ -162,7 +162,7 @@ pub async fn run<B, C, S, N, P>(
 	C::Api: MixnetApi<B>,
 	S: SyncOracle,
 	N: NetworkStateInfo + NetworkNotification + NetworkPeers,
-	P: TransactionPool<Block = B> + LocalTransactionPool<Block = B> + 'static,
+	P: TransactionPool<Block = B> + LocalTransactionPool<Block = B> + 'static + ?Sized,
 {
 	let local_peer_id = network.local_peer_id();
 	let Some(local_peer_id) = to_core_peer_id(&local_peer_id) else {
