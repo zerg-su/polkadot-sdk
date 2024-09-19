@@ -120,7 +120,7 @@ impl HandleNetworkMessage for NetworkAvailabilityState {
 				_ => Some(NetworkMessage::RequestFromNode(peer, request)),
 			},
 
-			message => Some(message),
+			message => None,
 		}
 	}
 }

@@ -180,6 +180,7 @@ struct PerRelayParentData {
 
 	/// The span for this leaf/relay parent.
 	span: PerLeafSpan,
+	count: usize,
 }
 
 impl PerRelayParentData {
@@ -196,6 +197,7 @@ impl PerRelayParentData {
 			one_per_validator: Default::default(),
 			message_sent_to_peer: Default::default(),
 			message_received_from_peer: Default::default(),
+			count: 0,
 		}
 	}
 
@@ -397,6 +399,7 @@ async fn handle_bitfield_distribution<Context>(
 	};
 
 	let msg = BitfieldGossipMessage { relay_parent, signed_availability };
+
 	let topology = state.topologies.get_topology_or_fallback(session_idx).local_grid_neighbors();
 	let required_routing = topology.required_routing_by_index(validator_index, true);
 
@@ -445,6 +448,7 @@ async fn relay_message<Context>(
 	let mut random_routing: RandomRouting = Default::default();
 
 	let _span = span.child("interested-peers");
+
 	// pass on the bitfield distribution to all interested peers
 	let interested_peers = peers
 		.iter()
@@ -488,6 +492,15 @@ async fn relay_message<Context>(
 	});
 
 	drop(_span);
+	// gum::info!(
+	// 	target: LOG_TARGET,
+	// 	?relay_parent,
+	// 	?validator,
+	// 	?required_routing,
+	// 	peers_relayed_to = interested_peers.len(),
+	// 	total_peers = peers.len(),
+	// 	"Relaying gossip message",
+	// );
 
 	if interested_peers.is_empty() {
 		gum::trace!(
@@ -557,12 +570,6 @@ async fn process_incoming_peer_message<Context>(
 		)) => (relay_parent, bitfield),
 	};
 
-	gum::trace!(
-		target: LOG_TARGET,
-		peer = %origin,
-		?relay_parent,
-		"received bitfield gossip from peer"
-	);
 	// we don't care about this, not part of our view.
 	if !state.view.contains(&relay_parent) {
 		modify_reputation(
@@ -592,6 +599,16 @@ async fn process_incoming_peer_message<Context>(
 		return
 	};
 
+	job_data.count += 1;
+
+	gum::trace!(
+		target: LOG_TARGET,
+		peer = %origin,
+		?relay_parent,
+		validator_index = ?bitfield.unchecked_validator_index(),
+		count =  job_data.count,
+		"received bitfield gossip from peer"
+	);
 	let validator_index = bitfield.unchecked_validator_index();
 
 	let mut _span = job_data
@@ -690,7 +707,12 @@ async fn process_incoming_peer_message<Context>(
 	};
 
 	let message = BitfieldGossipMessage { relay_parent, signed_availability };
-
+	// gum::info!(
+	// 	target: LOG_TARGET,
+	// 	topologies = ?state.topologies,
+	// 	session_idx = ?job_data.signing_context.session_index,
+	// 	"Sending gossip message"
+	// );
 	let topology = state
 		.topologies
 		.get_topology_or_fallback(job_data.signing_context.session_index)

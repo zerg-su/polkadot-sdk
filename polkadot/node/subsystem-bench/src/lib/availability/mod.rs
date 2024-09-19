@@ -16,6 +16,7 @@
 
 use crate::{
 	availability::av_store_helpers::new_av_store,
+	configuration::TestAuthorities,
 	dummy_builder,
 	environment::{TestEnvironment, TestEnvironmentDependencies},
 	mock::{
@@ -29,11 +30,13 @@ use crate::{
 	},
 	network::new_network,
 	usage::BenchmarkUsage,
+	NODE_UNDER_TEST,
 };
 use colored::Colorize;
 use futures::{channel::oneshot, stream::FuturesUnordered, StreamExt};
 
 use codec::Encode;
+use itertools::Itertools;
 use polkadot_availability_bitfield_distribution::BitfieldDistribution;
 use polkadot_availability_distribution::{
 	AvailabilityDistributionSubsystem, IncomingRequestReceivers,
@@ -42,11 +45,15 @@ use polkadot_availability_recovery::{AvailabilityRecoverySubsystem, RecoveryStra
 use polkadot_node_core_av_store::AvailabilityStoreSubsystem;
 use polkadot_node_metrics::metrics::Metrics;
 use polkadot_node_network_protocol::{
+	grid_topology::{SessionGridTopology, TopologyPeerInfo},
 	request_response::{v1, v2, IncomingRequest},
-	OurView,
+	OurView, View,
 };
 use polkadot_node_subsystem::{
-	messages::{AllMessages, AvailabilityRecoveryMessage},
+	messages::{
+		network_bridge_event::NewGossipTopology, AllMessages, AvailabilityRecoveryMessage,
+		BitfieldDistributionMessage,
+	},
 	Overseer, OverseerConnector, SpawnGlue,
 };
 use polkadot_node_subsystem_types::{
@@ -54,8 +61,11 @@ use polkadot_node_subsystem_types::{
 	Span,
 };
 use polkadot_overseer::{metrics::Metrics as OverseerMetrics, Handle as OverseerHandle};
-use polkadot_primitives::{Block, CoreIndex, GroupIndex, Hash};
-use sc_network::request_responses::{IncomingRequest as RawIncomingRequest, ProtocolConfig};
+use polkadot_primitives::{Block, CoreIndex, GroupIndex, Hash, ValidatorIndex};
+use sc_network::{
+	request_responses::{IncomingRequest as RawIncomingRequest, ProtocolConfig},
+	PeerId,
+};
 use std::{ops::Sub, sync::Arc, time::Instant};
 use strum::Display;
 
@@ -375,6 +385,52 @@ pub async fn benchmark_availability_read(
 	env.collect_resource_usage(&["availability-recovery"])
 }
 
+/// Generates a topology to be used for this benchmark.
+pub fn generate_topology(test_authorities: &TestAuthorities) -> SessionGridTopology {
+	let keyrings = test_authorities
+		.validator_authority_id
+		.clone()
+		.into_iter()
+		.zip(test_authorities.peer_ids.clone())
+		.collect_vec();
+
+	let topology = keyrings
+		.clone()
+		.into_iter()
+		.enumerate()
+		.map(|(index, (discovery_id, peer_id))| TopologyPeerInfo {
+			peer_ids: vec![peer_id],
+			validator_index: ValidatorIndex(index as u32),
+			discovery_id,
+		})
+		.collect_vec();
+	let shuffled = (0..keyrings.len()).collect_vec();
+
+	SessionGridTopology::new(shuffled, topology)
+}
+
+/// Generates new session topology message.
+pub fn generate_new_session_topology(
+	test_authorities: &TestAuthorities,
+	test_node: ValidatorIndex,
+) -> Vec<AllMessages> {
+	let topology = generate_topology(test_authorities);
+
+	let event = NetworkBridgeEvent::NewGossipTopology(NewGossipTopology {
+		session: 1,
+		topology,
+		local_index: Some(test_node),
+	});
+	vec![AllMessages::BitfieldDistribution(BitfieldDistributionMessage::NetworkBridgeUpdate(event))]
+}
+
+/// Generates a peer view change for the passed `block_hash`
+pub fn generate_peer_view_change_for(block_hash: Hash, peer_id: PeerId) -> AllMessages {
+	let network = NetworkBridgeEvent::PeerViewChange(peer_id, View::new([block_hash], 0));
+
+	AllMessages::BitfieldDistribution(BitfieldDistributionMessage::NetworkBridgeUpdate(network))
+}
+
 pub async fn benchmark_availability_write(
 	env: &mut TestEnvironment,
 	state: &TestState,
@@ -409,6 +465,19 @@ pub async fn benchmark_availability_write(
 
 	gum::info!(target: LOG_TARGET, "Done");
 
+	let mut initialization_messages = env.network().generate_peer_connected(|e| {
+		AllMessages::BitfieldDistribution(BitfieldDistributionMessage::NetworkBridgeUpdate(e))
+	});
+
+	initialization_messages.extend(generate_new_session_topology(
+		&state.test_authorities,
+		ValidatorIndex(NODE_UNDER_TEST),
+	));
+
+	for message in initialization_messages {
+		env.send_message(message).await;
+	}
+
 	let test_start = Instant::now();
 	for block_info in state.block_infos.iter() {
 		let block_num = block_info.number as usize;
@@ -423,6 +492,13 @@ pub async fn benchmark_availability_write(
 		let message = polkadot_node_subsystem_types::messages::BitfieldDistributionMessage::NetworkBridgeUpdate(
 			NetworkBridgeEvent::OurViewChange(OurView::new(vec![(relay_block_hash, Arc::new(Span::Disabled))], 0))
 		);
+
+		for validator in 1..state.test_authorities.validator_authority_id.len() as u32 {
+			let peer_id = state.test_authorities.peer_ids.get(validator as usize).unwrap();
+			let view_update = generate_peer_view_change_for(block_info.hash, *peer_id);
+			env.send_message(view_update).await;
+		}
+
 		env.send_message(AllMessages::BitfieldDistribution(message)).await;
 
 		let chunk_fetch_start_ts = Instant::now();
