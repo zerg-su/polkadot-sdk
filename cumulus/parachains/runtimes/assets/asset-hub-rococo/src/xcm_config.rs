@@ -14,11 +14,11 @@
 // limitations under the License.
 
 use super::{
-	AccountId, AllPalletsWithSystem, Assets, Authorship, Balance, Balances, BaseDeliveryFee, CollatorSelection,
-	FeeAssetId, ForeignAssets, ForeignAssetsInstance, ParachainInfo, ParachainSystem, PolkadotXcm,
-	PoolAssets, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, ToWestendOverBridgeHubLegacyXcmRouter,
-	ToWestendXcmRouter, TransactionByteFee, TrustBackedAssetsInstance, Uniques, WeightToFee, XcmpQueue,
-	XcmOverAssetHubWestend,
+	AccountId, AllPalletsWithSystem, Assets, Authorship, Balance, Balances, BaseDeliveryFee,
+	CollatorSelection, FeeAssetId, ForeignAssets, ForeignAssetsInstance, ParachainInfo,
+	ParachainSystem, PolkadotXcm, PoolAssets, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	ToWestendOverBridgeHubLegacyXcmRouter, ToWestendXcmRouter, TransactionByteFee,
+	TrustBackedAssetsInstance, Uniques, WeightToFee, XcmOverAssetHubWestend, XcmpQueue,
 };
 use assets_common::{
 	matching::{FromNetwork, FromSiblingParachain, IsForeignConcreteAsset, ParentLocation},
@@ -477,8 +477,8 @@ pub type XcmRouter = WithUniqueTopic<(
 	// Router that exports messages to be delivered to the Westend GlobalConsensus,
 	// when a permissionless lane is created between the origin and destination.
 	ToWestendXcmRouter,
-	// Router which wraps (`ExportMessage`) and sends xcm to BridgeHub to be delivered to the Westend
-	// GlobalConsensus
+	// Router which wraps (`ExportMessage`) and sends xcm to BridgeHub to be delivered to the
+	// Westend GlobalConsensus
 	ToWestendOverBridgeHubLegacyXcmRouter,
 	// Router which wraps and sends xcm to BridgeHub to be delivered to the Ethereum
 	// GlobalConsensus

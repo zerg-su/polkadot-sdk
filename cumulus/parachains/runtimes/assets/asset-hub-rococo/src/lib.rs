@@ -24,10 +24,10 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-mod genesis_config_presets;
-mod weights;
 pub mod bridge_common_config;
 pub mod bridge_to_westend_config;
+mod genesis_config_presets;
+mod weights;
 pub mod xcm_config;
 
 extern crate alloc;
@@ -931,9 +931,12 @@ impl pallet_nfts::Config for Runtime {
 /// consensus with dynamic fees and back-pressure.
 /// (legacy routing with `ExportMessage` over BridgeHub)
 pub type ToWestendOverBridgeHubLegacyXcmRouterInstance = pallet_xcm_bridge_hub_router::Instance3;
-impl pallet_xcm_bridge_hub_router::Config<ToWestendOverBridgeHubLegacyXcmRouterInstance> for Runtime {
+impl pallet_xcm_bridge_hub_router::Config<ToWestendOverBridgeHubLegacyXcmRouterInstance>
+	for Runtime
+{
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_xcm_bridge_hub_router_to_westend_over_bridge_hub::WeightInfo<Runtime>;
+	type WeightInfo =
+		weights::pallet_xcm_bridge_hub_router_to_westend_over_bridge_hub::WeightInfo<Runtime>;
 
 	type DestinationVersion = PolkadotXcm;
 
@@ -1045,7 +1048,7 @@ pub type TxExtension = (
 	pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
 	cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
-	(bridge_to_westend_config::OnAssetHubRococoRefundAssetHubWestendMessages, ),
+	(bridge_to_westend_config::OnAssetHubRococoRefundAssetHubWestendMessages,),
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =

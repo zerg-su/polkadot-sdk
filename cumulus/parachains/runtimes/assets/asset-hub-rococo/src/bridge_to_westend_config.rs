@@ -16,18 +16,23 @@
 
 //! Bridge definitions used on BridgeHubRococo for bridging to BridgeHubWestend.
 
-use crate::{bridge_common_config::{
-	DeliveryRewardInBalance,
-	BridgeRelayersInstance,
-}, weights, xcm_config, xcm_config::UniversalLocation, AccountId, Balance, Balances, PolkadotXcm, Runtime, RuntimeEvent, RuntimeHoldReason, XcmOverAssetHubWestend, ToWestendXcmRouter};
+use crate::{
+	bridge_common_config::{BridgeRelayersInstance, DeliveryRewardInBalance},
+	weights, xcm_config,
+	xcm_config::UniversalLocation,
+	AccountId, Balance, Balances, PolkadotXcm, Runtime, RuntimeEvent, RuntimeHoldReason,
+	ToWestendXcmRouter, XcmOverAssetHubWestend,
+};
 use alloc::{vec, vec::Vec};
 use bp_messages::HashedLaneId;
 use bp_runtime::HashOf;
 use bridge_hub_common::xcm_version::XcmVersionOfDestAndRemoteBridge;
 use pallet_xcm_bridge_hub::XcmAsPlainPayload;
 
-use frame_support::parameter_types;
-use frame_support::traits::{EitherOf, Equals};
+use frame_support::{
+	parameter_types,
+	traits::{EitherOf, Equals},
+};
 use frame_system::{EnsureRoot, EnsureRootWithSuccess};
 use pallet_bridge_messages::LaneIdOf;
 use pallet_bridge_relayers::extension::{
@@ -35,17 +40,22 @@ use pallet_bridge_relayers::extension::{
 };
 use pallet_xcm::EnsureXcm;
 use pallet_xcm_bridge_hub::congestion::{
-	BlobDispatcherWithChannelStatus, UpdateBridgeStatusXcmChannelManager, HereOrLocalConsensusXcmChannelManager,
+	BlobDispatcherWithChannelStatus, HereOrLocalConsensusXcmChannelManager,
+	UpdateBridgeStatusXcmChannelManager,
 };
-use parachains_common::xcm_config::{AllSiblingSystemParachains, ParentRelayOrSiblingParachains, RelayOrOtherSystemParachains};
+use parachains_common::xcm_config::{
+	AllSiblingSystemParachains, ParentRelayOrSiblingParachains, RelayOrOtherSystemParachains,
+};
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::Convert;
 use testnet_parachains_constants::rococo::currency::UNITS as ROC;
 use xcm::{
 	latest::{prelude::*, WESTEND_GENESIS_HASH},
-	prelude::{NetworkId},
+	prelude::NetworkId,
 };
-use xcm_builder::{BridgeBlobDispatcher, ParentIsPreset, SiblingParachainConvertsVia, UnpaidLocalExporter};
+use xcm_builder::{
+	BridgeBlobDispatcher, ParentIsPreset, SiblingParachainConvertsVia, UnpaidLocalExporter,
+};
 
 parameter_types! {
 	pub const HereLocation: Location = Location::here();
@@ -113,9 +123,7 @@ impl pallet_bridge_messages::Config<WithAssetHubWestendMessagesInstance> for Run
 /// TODO: doc + FAIL-CI - implement storage for synced proofs from BridgeHub
 pub struct ParachainHeaderProofs<C>(core::marker::PhantomData<C>);
 impl<C: bp_runtime::Chain> bp_header_chain::HeaderChain<C> for ParachainHeaderProofs<C> {
-	fn finalized_header_state_root(
-		header_hash: HashOf<C>,
-	) -> Option<HashOf<C>> {
+	fn finalized_header_state_root(header_hash: HashOf<C>) -> Option<HashOf<C>> {
 		todo!("TODO: FAIL-CI - implement storage for synced proofs from BridgeHub")
 	}
 }
@@ -145,13 +153,14 @@ impl pallet_xcm_bridge_hub::Config<XcmOverAssetHubWestendInstance> for Runtime {
 
 	// TODO: FAIL-CI: we need to setup some price or configure per location?
 	type MessageExportPrice = ();
-	type DestinationVersion =
-		XcmVersionOfDestAndRemoteBridge<PolkadotXcm, AssetHubWestendLocation>;
+	type DestinationVersion = XcmVersionOfDestAndRemoteBridge<PolkadotXcm, AssetHubWestendLocation>;
 
 	type ForceOrigin = EnsureRoot<AccountId>;
-	// We allow creating bridges for the runtime itself and for other local consensus chains (relay, paras).
+	// We allow creating bridges for the runtime itself and for other local consensus chains (relay,
+	// paras).
 	type OpenBridgeOrigin = EitherOf<
-		// We want to translate `RuntimeOrigin::root()` to the `Location::here()`, e.g. for governance calls.
+		// We want to translate `RuntimeOrigin::root()` to the `Location::here()`, e.g. for
+		// governance calls.
 		EnsureRootWithSuccess<AccountId, HereLocation>,
 		// For relay or sibling chains
 		EnsureXcm<ParentRelayOrSiblingParachains>,
@@ -164,7 +173,8 @@ impl pallet_xcm_bridge_hub::Config<XcmOverAssetHubWestendInstance> for Runtime {
 	type Currency = Balances;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	// Do not require deposit from system parachains (including itself) or relay chain
-	type AllowWithoutBridgeDeposit = (RelayOrOtherSystemParachains<AllSiblingSystemParachains, Runtime>, Equals<HereLocation>);
+	type AllowWithoutBridgeDeposit =
+		(RelayOrOtherSystemParachains<AllSiblingSystemParachains, Runtime>, Equals<HereLocation>);
 
 	// This pallet is deployed on AH, so we expect a remote router with `ExportMessage`. We handle
 	// congestion with XCM using `udpate_bridge_status` sent to the sending chain. (congestion with
@@ -173,7 +183,8 @@ impl pallet_xcm_bridge_hub::Config<XcmOverAssetHubWestendInstance> for Runtime {
 		pallet_xcm_bridge_hub::BridgeId,
 		// handles congestion for local chain router for local AH's bridges
 		ToWestendXcmRouter,
-		// handles congestion for other local chains with XCM using `update_bridge_status` sent to the sending chain.
+		// handles congestion for other local chains with XCM using `update_bridge_status` sent to
+		// the sending chain.
 		UpdateBridgeStatusXcmChannelManager<
 			Runtime,
 			XcmOverAssetHubWestendInstance,
@@ -198,8 +209,8 @@ impl pallet_xcm_bridge_hub::Config<XcmOverAssetHubWestendInstance> for Runtime {
 	type CongestionLimits = ();
 }
 
-/// XCM router instance to the local `pallet_xcm_bridge_hub::<XcmOverAssetHubWestendInstance>` with direct bridging capabilities for `Westend` global
-/// consensus with dynamic fees and back-pressure.
+/// XCM router instance to the local `pallet_xcm_bridge_hub::<XcmOverAssetHubWestendInstance>` with
+/// direct bridging capabilities for `Westend` global consensus with dynamic fees and back-pressure.
 pub type ToWestendXcmRouterInstance = pallet_xcm_bridge_hub_router::Instance1;
 impl pallet_xcm_bridge_hub_router::Config<ToWestendXcmRouterInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -217,8 +228,10 @@ impl pallet_xcm_bridge_hub_router::Config<ToWestendXcmRouterInstance> for Runtim
 
 	// For congestion - resolves `BridgeId` using the same algorithm as `pallet_xcm_bridge_hub` on
 	// the BH.
-	type BridgeIdResolver = pallet_xcm_bridge_hub_router::impls::EnsureIsRemoteBridgeIdResolver<UniversalLocation>;
-	// We don't expect here `update_bridge_status` calls from the local BridgeHub or any other local chain.
+	type BridgeIdResolver =
+		pallet_xcm_bridge_hub_router::impls::EnsureIsRemoteBridgeIdResolver<UniversalLocation>;
+	// We don't expect here `update_bridge_status` calls from the local BridgeHub or any other local
+	// chain.
 	type BridgeHubOrigin = frame_system::EnsureNever<()>;
 
 	// For adding message size fees
@@ -272,15 +285,14 @@ mod tests {
 			bridged_chain: bp_asset_hub_westend::AssetHubWestend,
 		);
 
-		assert_standalone_messages_bridge_constants::<
-			Runtime,
-			WithAssetHubWestendMessagesInstance,
-		>(AssertCompleteBridgeConstants {
-			this_chain_constants: AssertChainConstants {
-				block_length: bp_bridge_hub_rococo::BlockLength::get(),
-				block_weights: bp_bridge_hub_rococo::BlockWeightsForAsyncBacking::get(),
+		assert_standalone_messages_bridge_constants::<Runtime, WithAssetHubWestendMessagesInstance>(
+			AssertCompleteBridgeConstants {
+				this_chain_constants: AssertChainConstants {
+					block_length: bp_bridge_hub_rococo::BlockLength::get(),
+					block_weights: bp_bridge_hub_rococo::BlockWeightsForAsyncBacking::get(),
+				},
 			},
-		});
+		);
 
 		pallet_bridge_relayers::extension::per_message::ensure_priority_boost_is_sane::<
 			Runtime,
