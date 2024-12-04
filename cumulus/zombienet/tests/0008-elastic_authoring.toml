@@ -2,12 +2,13 @@
 timeout = 1000
 
 [relaychain.genesis.runtimeGenesis.patch.configuration.config.async_backing_params]
-  max_candidate_depth = 6
+  max_candidate_depth = 40
   allowed_ancestry_len = 3
 
 [relaychain.genesis.runtimeGenesis.patch.configuration.config.scheduler_params]
   max_validators_per_core = 1
-  num_cores = 4
+  lookahead = 13
+  num_cores = 12
 
 [relaychain.genesis.runtimeGenesis.patch.configuration.config.approval_voting_params]
   max_approval_coalesce_count = 5
@@ -24,7 +25,7 @@ command = "polkadot"
   [[relaychain.node_groups]]
   name = "validator"
   args = ["-lruntime=debug,parachain=trace" ]
-  count = 8
+  count = 14
 
 # Slot based authoring with 3 cores and 2s slot duration
 [[parachains]]

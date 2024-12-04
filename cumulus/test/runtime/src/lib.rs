@@ -99,14 +99,14 @@ const UNINCLUDED_SEGMENT_CAPACITY: u32 = 4;
 const BLOCK_PROCESSING_VELOCITY: u32 = 1;
 
 #[cfg(feature = "elastic-scaling")]
-const UNINCLUDED_SEGMENT_CAPACITY: u32 = 7;
+const UNINCLUDED_SEGMENT_CAPACITY: u32 = 40;
 #[cfg(feature = "elastic-scaling")]
-const BLOCK_PROCESSING_VELOCITY: u32 = 4;
+const BLOCK_PROCESSING_VELOCITY: u32 = 16;
 
 #[cfg(not(feature = "elastic-scaling"))]
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
 #[cfg(feature = "elastic-scaling")]
-pub const MILLISECS_PER_BLOCK: u64 = 2000;
+pub const MILLISECS_PER_BLOCK: u64 = 500;
 
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 

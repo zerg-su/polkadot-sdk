@@ -494,9 +494,9 @@ where
 					para_id,
 					proposer,
 					collator_service,
-					authoring_duration: Duration::from_millis(2000),
+					authoring_duration: Duration::from_millis(500),
 					reinitialize: false,
-					slot_drift: Duration::from_secs(1),
+					slot_drift: Duration::from_millis(250),
 					spawner: task_manager.spawn_handle(),
 				};
 

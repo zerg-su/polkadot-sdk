@@ -222,6 +222,9 @@ where
 
 		loop {
 			// We wait here until the next slot arrives.
+
+			tracing::info!(target: crate::LOG_TARGET, "Waiting for next slot.");
+
 			let Ok(para_slot) = slot_timer.wait_until_next_slot().await else {
 				return;
 			};
@@ -230,6 +233,7 @@ where
 				tracing::warn!(target: crate::LOG_TARGET, "Unable to fetch latest relay chain block hash.");
 				continue
 			};
+			tracing::info!(target: crate::LOG_TARGET, "Slot started.");
 
 			let Some((included_block, parent)) =
 				crate::collators::find_parent(relay_parent, para_id, &*para_backend, &relay_client)
@@ -237,6 +241,8 @@ where
 			else {
 				continue
 			};
+
+			tracing::info!(target: crate::LOG_TARGET, "Slot started fetch core");
 
 			let parent_hash = parent.hash;
 
@@ -253,6 +259,8 @@ where
 						continue
 					},
 				};
+
+			tracing::info!(target: crate::LOG_TARGET, ?core_selector, ?parent_hash, parent_numer = ?parent.header.number(), ?para_slot, "Slot started.");
 
 			let Ok(RelayChainData {
 				relay_parent_header,
@@ -284,6 +292,7 @@ where
 				// scheduled_cores length and we check that the scheduled_cores is not empty.
 				continue;
 			};
+			tracing::info!(target: crate::LOG_TARGET, ?core_selector, ?claimed_cores, "Slot started.");
 
 			if !claimed_cores.insert(*core_index) {
 				tracing::debug!(

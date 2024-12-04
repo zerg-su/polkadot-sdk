@@ -10,9 +10,19 @@ collator-single-core: is up
 # configure relay chain
 alice: js-script ./assign-core.js with "2100,0" return is 0 within 600 seconds
 alice: js-script ./assign-core.js with "2100,1" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,2" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,3" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,4" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,5" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,6" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,7" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,8" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,9" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,10" return is 0 within 600 seconds
+alice: js-script ./assign-core.js with "2100,11" return is 0 within 600 seconds
 
 collator-single-core: reports block height is at least 20 within 225 seconds
-collator-elastic: reports block height is at least 40 within 225 seconds
+collator-elastic: reports block height is at least 4000 within 2205 seconds
 
 # We want to make sure that none of the consensus hook checks fail, even if the chain makes progress
 collator-elastic: count of log lines containing "set_validation_data inherent needs to be present in every block" is 0 within 10 seconds
