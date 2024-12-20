@@ -1106,6 +1106,69 @@ mod tests {
 	}
 
 	#[test]
+	fn tttttt2() {
+		println!("  q1       q2");
+
+		let q2 = bitvec::bitvec![u8, Lsb0; 1, 1];
+		let q1 = bitvec::bitvec![u8, Lsb0; 0, 0];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 1, 1];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 1, 0];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 0, 1];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+
+
+		let q2 = bitvec::bitvec![u8, Lsb0; 0, 0];
+		let q1 = bitvec::bitvec![u8, Lsb0; 0, 0];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 1, 1];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 1, 0];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 0, 1];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+
+
+		let q2 = bitvec::bitvec![u8, Lsb0; 0, 1];
+		let q1 = bitvec::bitvec![u8, Lsb0; 0, 0];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 1, 1];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 1, 0];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 0, 1];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+
+
+		let q2 = bitvec::bitvec![u8, Lsb0; 1, 0];
+		let q1 = bitvec::bitvec![u8, Lsb0; 0, 0];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 1, 1];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 1, 0];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+
+		let q1 = bitvec::bitvec![u8, Lsb0; 0, 1];
+		println!("{q1}   {q2}   {}", q1.contains(&q2));
+	}
+
+	#[test]
 	fn topology_empty_for_no_index() {
 		let base_topology = SessionGridTopology::new(
 			vec![0, 1, 2],

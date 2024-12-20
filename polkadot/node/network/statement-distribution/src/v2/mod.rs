@@ -42,6 +42,7 @@ use polkadot_node_subsystem::{
 	},
 	overseer, ActivatedLeaf,
 };
+use sp_core::sr25519;
 use polkadot_node_subsystem_util::{
 	backing_implicit_view::View as ImplicitView,
 	reputation::ReputationAggregator,
@@ -1352,8 +1353,21 @@ async fn circulate_statement<Context>(
 	metrics: &Metrics,
 ) {
 	let session_info = &per_session.session_info;
-
+	//let tmp = ;
+	use hex_literal::hex;
+	use sp_core::sr25519;
+	let kagome_validator_hex = hex_literal::hex!("6c8dd844456323ef2ffe430ca7557da542a1d3ccfc63fceeac39c3002422404f");
+	let kagome_validator = AuthorityDiscoveryId::from(sr25519::Public::from_raw(kagome_validator_hex));
+	let kagome_vi = session_info.discovery_keys.iter().position(|r| *r == kagome_validator);
 	let candidate_hash = *statement.payload().candidate_hash();
+
+	if let Some(kagome_vi) = kagome_vi {
+		gum::info!(
+			target: LOG_TARGET,
+			"===> [VI:{}][RP:{}][CH:{}] Found kagome", kagome_vi, relay_parent, candidate_hash
+		);
+	}
+
 
 	let compact_statement = statement.payload().clone();
 	let is_confirmed = candidates.is_confirmed(&candidate_hash);
@@ -1383,10 +1397,24 @@ async fn circulate_statement<Context>(
 							.targets()
 							.iter()
 							.filter(|&&v| {
-								active
+								let is_kagome = kagome_vi.map(|kagome_vi| {
+									if v.0 as usize == kagome_vi {
+										true
+									} else {
+										false
+									}
+								});
+								let f = active
 									.cluster_tracker
-									.can_send(v, originator, compact_statement.clone())
-									.is_ok()
+									.can_send(v, originator, compact_statement.clone(), if let Some(true) = is_kagome { true } else { false })
+									.is_ok();
+								if let Some(true) = is_kagome {
+									gum::info!(
+										target: LOG_TARGET,
+										"===> [VI:{}][RP:{}][CH:{}] filtered: {}", kagome_vi.unwrap(), relay_parent, candidate_hash, if f { "yes" } else { "no" }
+									);
+								}
+								f
 							})
 							.filter(|&v| v != &active.index)
 							.map(|v| (*v, DirectTargetKind::Cluster)),
@@ -1420,9 +1448,34 @@ async fn circulate_statement<Context>(
 
 	let mut statement_to_peers: Vec<(PeerId, ProtocolVersion)> = Vec::new();
 	for (target, authority_id, kind) in targets {
+		let mut is_kagome = false;
+		if kagome_validator == authority_id {
+			is_kagome = true;
+			gum::info!(
+				target: LOG_TARGET,
+				"===> [VI:{}][RP:{}][CH:{}] searching in `authorities`...",
+				kagome_vi.unwrap(),
+				relay_parent,
+				candidate_hash,
+			);
+		}
+
 		// Find peer ID based on authority ID, and also filter to connected.
 		let peer_id: (PeerId, ProtocolVersion) = match authorities.get(&authority_id) {
-			Some(p) if peers.get(p).map_or(false, |p| p.knows_relay_parent(&relay_parent)) => (
+			Some(p) if peers.get(p).map_or(false, |p| {
+				let knows = p.knows_relay_parent(&relay_parent);
+				if is_kagome {
+					gum::info!(
+						target: LOG_TARGET,
+						"===> [VI:{}][RP:{}][CH:{}] knows RP: {}",
+						kagome_vi.unwrap(),
+						relay_parent,
+						candidate_hash,
+						if knows { "yes" } else { "no" }
+					);
+				}
+				knows
+			}) => (
 				*p,
 				peers
 					.get(p)
@@ -1430,7 +1483,15 @@ async fn circulate_statement<Context>(
 					.protocol_version
 					.into(),
 			),
-			None | Some(_) => continue,
+			None | Some(_) => {
+				// If the authority is not connected, we should not send the statement.
+				gum::debug!(
+					target: LOG_TARGET,
+					authority_id = ?authority_id,
+					"Authority not connected, skipping statement",
+				);
+				continue
+			},
 		};
 
 		match kind {
@@ -1443,10 +1504,29 @@ async fn circulate_statement<Context>(
 				// At this point, all peers in the cluster should 'know'
 				// the candidate, so we don't expect for this to fail.
 				if let Ok(()) =
-					active.cluster_tracker.can_send(target, originator, compact_statement.clone())
+					active.cluster_tracker.can_send(target, originator, compact_statement.clone(), is_kagome)
 				{
+					if is_kagome {
+						gum::info!(
+							target: LOG_TARGET,
+							"===> [VI:{}][RP:{}][CH:{}] can send",
+							kagome_vi.unwrap(),
+							relay_parent,
+							candidate_hash,
+						);
+					}
 					active.cluster_tracker.note_sent(target, originator, compact_statement.clone());
 					statement_to_peers.push(peer_id);
+				} else {
+					if is_kagome {
+						gum::info!(
+							target: LOG_TARGET,
+							"===> [VI:{}][RP:{}][CH:{}] skip send",
+							kagome_vi.unwrap(),
+							relay_parent,
+							candidate_hash,
+						);
+					}
 				}
 			},
 			DirectTargetKind::Grid => {

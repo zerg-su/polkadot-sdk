@@ -232,12 +232,19 @@ impl ClusterTracker {
 		target: ValidatorIndex,
 		originator: ValidatorIndex,
 		statement: CompactStatement,
+		is_kagome: bool
 	) -> Result<(), RejectOutgoing> {
 		if !self.is_in_group(target) || !self.is_in_group(originator) {
+			if is_kagome {
+				println!("===> [VI:{}][VIO:{}] not in group", target.0, originator.0);
+			}
 			return Err(RejectOutgoing::NotInGroup)
 		}
 
 		if self.they_know_statement(target, originator, statement.clone()) {
+			if is_kagome {
+				println!("===> [VI:{}][VIO:{}] they know statement", target.0, originator.0);
+			}
 			return Err(RejectOutgoing::Known)
 		}
 
@@ -246,6 +253,9 @@ impl ClusterTracker {
 				// we send the same `Seconded` statements to all our peers, and only the first `k`
 				// from each originator.
 				if !self.seconded_already_or_within_limit(originator, candidate_hash) {
+					if is_kagome {
+						println!("===> [VI:{}][VIO:{}] seconded already", target.0, originator.0);
+					}
 					return Err(RejectOutgoing::ExcessiveSeconded)
 				}
 
@@ -253,6 +263,9 @@ impl ClusterTracker {
 			},
 			CompactStatement::Valid(candidate_hash) => {
 				if !self.knows_candidate(target, candidate_hash) {
+					if is_kagome {
+						println!("===> [VI:{}][VIO:{}] candidate unknown", target.0, originator.0);
+					}
 					return Err(RejectOutgoing::CandidateUnknown)
 				}
 
